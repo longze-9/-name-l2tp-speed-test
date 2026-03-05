@@ -3,675 +3,1097 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>L2TP VPN 测速工具</title>
+<title>L2TP 测速</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --blue:#4A7CF7;--blue-light:#EEF2FF;--blue-dark:#3563E9;
+  --bg:#F0F4FF;--white:#FFFFFF;--text:#1A1D2E;--muted:#8A94A6;--border:#E8ECF4;
+  --green:#22C55E;--green-light:#DCFCE7;--red:#EF4444;--red-light:#FEE2E2;
+  --yellow:#F59E0B;--yellow-light:#FEF3C7;--orange:#F97316;
+  --shadow-sm:0 2px 8px rgba(74,124,247,0.08);
+  --shadow-md:0 4px 20px rgba(74,124,247,0.12);
+  --shadow-lg:0 8px 32px rgba(74,124,247,0.18);
+  --r:20px;--font:'Plus Jakarta Sans',sans-serif;
+}
+body{background:var(--bg);font-family:var(--font);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:40px 16px;}
 
-  :root {
-    --bg: #0a0d14;
-    --surface: #111520;
-    --surface2: #161b28;
-    --border: #1e2738;
-    --accent: #00e5ff;
-    --accent2: #7c3aed;
-    --green: #00ff88;
-    --red: #ff4466;
-    --yellow: #ffcc00;
-    --text: #e2e8f0;
-    --muted: #4a5568;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Syne', sans-serif;
-  }
+/* ── Phone Shell ── */
+.phone-shell{width:390px;min-height:844px;background:var(--bg);border-radius:54px;box-shadow:0 0 0 10px #1A1D2E,0 0 0 12px #2E3352,0 40px 80px rgba(26,29,46,0.4);overflow:hidden;position:relative;flex-shrink:0;}
+.phone-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:126px;height:34px;background:#1A1D2E;border-radius:0 0 22px 22px;z-index:100;}
+.status-bar{height:54px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 28px 8px;font-size:12px;font-weight:600;color:var(--text);}
+.status-bar .time{font-size:15px;font-weight:700;}
+.status-icons{display:flex;align-items:center;gap:5px;}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+/* ── Pages ── */
+.page{display:none;height:calc(844px - 54px - 80px);overflow-y:auto;overflow-x:hidden;padding:0 20px 20px;scrollbar-width:none;}
+.page::-webkit-scrollbar{display:none;}
+.page.active{display:block;}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* ── Bottom Nav ── */
+.bottom-nav{height:80px;background:var(--white);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;padding:0 10px 16px;}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.2s;padding:6px 14px;border-radius:12px;}
+.nav-item.active{color:var(--blue);background:var(--blue-light);}
+.nav-icon{display:flex;align-items:center;justify-content:center;}
 
-  /* Background grid */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
+/* ── Common ── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.page-header h2{font-size:22px;font-weight:800;color:var(--text);}
+.page-header p{font-size:13px;color:var(--muted);margin-top:2px;}
+.avatar{width:48px;height:48px;border-radius:0;background:transparent;display:flex;align-items:center;justify-content:center;box-shadow:none;align-self:center;margin-top:18px;}
 
-  .container {
-    max-width: 860px;
-    margin: 0 auto;
-    padding: 40px 24px;
-    position: relative;
-    z-index: 1;
-  }
+.card{background:var(--white);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-sm);margin-bottom:10px;}
+.card-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;}
 
-  /* Header */
-  .header {
-    text-align: center;
-    margin-bottom: 40px;
-  }
+.sec-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 8px;}
 
-  .header-badge {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 3px;
-    color: var(--accent);
-    border: 1px solid rgba(0,229,255,0.3);
-    padding: 4px 14px;
-    border-radius: 2px;
-    margin-bottom: 16px;
-    text-transform: uppercase;
-  }
+/* ── Speed Page ── */
+.config-card{background:linear-gradient(135deg,var(--blue-dark),var(--blue));border-radius:var(--r);padding:20px;color:white;box-shadow:var(--shadow-lg);margin-bottom:10px;}
+.config-card-title{font-size:13px;font-weight:600;opacity:0.8;margin-bottom:16px;letter-spacing:0.5px;text-transform:uppercase;}
+.config-row{display:flex;gap:10px;margin-bottom:12px;}
+.config-field{flex:1;background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 12px;backdrop-filter:blur(8px);}
+.config-field label{display:block;font-size:10px;font-weight:600;opacity:0.7;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;}
+.config-field input,.config-field select{background:transparent;border:none;color:white;font-family:var(--font);font-size:18px;font-weight:700;width:100%;outline:none;text-align:center;}
+.config-field select option{background:var(--blue-dark);}
 
-  h1 {
-    font-family: var(--sans);
-    font-size: clamp(28px, 5vw, 46px);
-    font-weight: 800;
-    letter-spacing: -1px;
-    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, var(--accent2) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    line-height: 1.1;
-    margin-bottom: 10px;
-  }
+.sources-wrap{background:var(--white);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-sm);margin-bottom:10px;}
+.sources-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+.source-chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:12px;font-weight:600;padding:6px 14px;border-radius:30px;cursor:pointer;transition:all 0.2s;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);}
+.chip.on{background:var(--blue-light);border-color:var(--blue);color:var(--blue);}
+.chip.fetched{background:var(--green-light);border-color:var(--green);color:#16A34A;}
+.chip.failed{background:var(--red-light);border-color:var(--red);color:var(--red);}
 
-  .subtitle {
-    font-size: 13px;
-    color: var(--muted);
-    letter-spacing: 1px;
-  }
+.action-row{display:flex;gap:10px;margin-bottom:10px;}
+.btn-main{flex:1;background:linear-gradient(135deg,var(--blue-dark),var(--blue));border:none;border-radius:16px;color:white;font-family:var(--font);font-size:15px;font-weight:700;padding:16px;cursor:pointer;box-shadow:0 6px 20px rgba(74,124,247,0.35);transition:transform 0.15s;position:relative;overflow:hidden;}
+.btn-main:active{transform:scale(0.97);}
+.btn-main:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-main::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,0.15),transparent);transform:translateX(-100%);animation:shimmer 2.5s infinite;}
+@keyframes shimmer{60%,100%{transform:translateX(100%)}}
 
-  /* Config Panel */
-  .config-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 24px;
-    margin-bottom: 24px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 16px;
-  }
+.btn-geo{background:var(--white);border:1.5px solid var(--border);border-radius:16px;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;padding:0 16px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.btn-geo.active{border-color:var(--blue);color:var(--blue);background:var(--blue-light);}
 
-  .config-item label {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
+.status-card{background:var(--white);border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow-sm);margin-bottom:10px;font-size:13px;font-weight:500;}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--border);flex-shrink:0;transition:all 0.3s;}
+.status-dot.active{background:var(--blue);box-shadow:0 0 0 3px rgba(74,124,247,0.2);animation:pulse 1.2s infinite;}
+.status-dot.done{background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,0.2);animation:none;}
+.status-dot.error{background:var(--red);box-shadow:0 0 0 3px rgba(239,68,68,0.2);animation:none;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.status-text{flex:1;color:var(--text);}
+.status-count{font-size:12px;color:var(--muted);font-weight:600;}
 
-  .config-item input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    color: var(--accent);
-    font-family: var(--mono);
-    font-size: 18px;
-    font-weight: 600;
-    padding: 8px 12px;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.2s;
-  }
+.progress-wrap{height:4px;background:var(--border);border-radius:99px;margin-bottom:10px;overflow:hidden;}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--blue-dark),var(--blue));width:0%;transition:width 0.3s ease;border-radius:99px;}
 
-  .config-item input:focus {
-    border-color: var(--accent);
-  }
+.countdown-card{background:var(--blue-light);border:1.5px solid rgba(74,124,247,0.2);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--blue);}
+.cd-ring{position:relative;width:36px;height:36px;flex-shrink:0;}
+.cd-ring svg{transform:rotate(-90deg);}
+.cd-ring circle{fill:none;stroke-width:3;}
+.ring-bg{stroke:rgba(74,124,247,0.15);}
+.ring-fill{stroke:var(--blue);stroke-dasharray:88;stroke-dashoffset:88;transition:stroke-dashoffset 1s linear;}
+.cd-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--blue);}
+.btn-cd-cancel{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);background:white;border:1.5px solid var(--border);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:var(--font);}
 
-  /* Start Button */
-  .btn-start {
-    width: 100%;
-    background: linear-gradient(135deg, var(--accent2), var(--accent));
-    border: none;
-    border-radius: 4px;
-    color: #fff;
-    font-family: var(--sans);
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    padding: 16px;
-    cursor: pointer;
-    text-transform: uppercase;
-    position: relative;
-    overflow: hidden;
-    transition: opacity 0.2s, transform 0.1s;
-    margin-bottom: 24px;
-  }
+.server-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+.server-row{background:var(--white);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow-sm);animation:slideIn 0.25s ease;border:1.5px solid transparent;transition:border-color 0.2s;}
+@keyframes slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.server-row.success{border-color:rgba(34,197,94,0.2);}
+.server-row.fail{border-color:rgba(239,68,68,0.1);background:#FAFAFA;}
+.server-row.testing{border-color:rgba(74,124,247,0.25);}
+.server-indicator{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.testing .server-indicator{background:var(--blue);animation:pulse 1s infinite;}
+.success .server-indicator{background:var(--green);}
+.fail .server-indicator{background:var(--border);}
+.server-info{flex:1;min-width:0;}
+.server-ip{font-size:13px;font-weight:700;color:var(--text);}
+.server-geo{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.server-bar-wrap{flex:1;display:flex;flex-direction:column;gap:4px;}
+.latency-bar{height:3px;background:var(--border);border-radius:99px;overflow:hidden;}
+.latency-fill{height:100%;border-radius:99px;transition:width 0.5s ease;}
+.server-src{font-size:10px;color:var(--muted);}
+.server-ms{font-size:13px;font-weight:700;text-align:right;min-width:60px;}
 
-  .btn-start:hover { opacity: 0.9; }
-  .btn-start:active { transform: scale(0.99); }
-  .btn-start:disabled { opacity: 0.4; cursor: not-allowed; }
+.results-card{background:var(--white);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-md);margin-bottom:10px;}
+.results-header{background:linear-gradient(135deg,var(--blue-dark),var(--blue));padding:16px 18px;display:flex;align-items:center;justify-content:space-between;}
+.results-header h3{font-size:15px;font-weight:700;color:white;}
+.results-header span{font-size:12px;color:rgba(255,255,255,0.7);}
+.result-row{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.result-row:last-child{border-bottom:none;}
+.result-medal{font-size:22px;min-width:28px;}
+.result-body{flex:1;min-width:0;}
+.result-ip{font-size:14px;font-weight:700;color:var(--text);}
+.result-geo{font-size:11px;color:var(--muted);margin-top:2px;}
+.result-src{font-size:10px;color:var(--muted);margin-top:1px;}
+.result-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.result-ms{font-size:18px;font-weight:800;}
+.result-btns{display:flex;gap:5px;}
+.res-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer;font-family:var(--font);transition:all 0.15s;border:none;}
+.res-btn.ip{background:var(--blue-light);color:var(--blue);}
+.res-btn.full{background:linear-gradient(135deg,#EEF2FF,#E0E7FF);color:var(--blue-dark);}
+.res-btn:active{opacity:0.7;transform:scale(0.96);}
 
-  .btn-start .btn-glow {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent, rgba(255,255,255,0.15), transparent);
-    transform: translateX(-100%);
-    animation: shimmer 2s infinite;
-  }
+/* ── History Page ── */
+.history-empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.history-empty .empty-icon{font-size:48px;margin-bottom:12px;}
+.history-empty p{font-size:14px;font-weight:500;}
+.history-empty span{font-size:12px;opacity:0.7;}
 
-  @keyframes shimmer {
-    100% { transform: translateX(100%); }
-  }
+.history-item{background:var(--white);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);margin-bottom:8px;cursor:pointer;transition:transform 0.15s;}
+.history-item:active{transform:scale(0.98);}
+.history-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.history-time{font-size:12px;color:var(--muted);font-weight:600;}
+.history-badge{font-size:11px;font-weight:700;padding:3px 10px;border-radius:30px;}
+.badge-good{background:var(--green-light);color:#16A34A;}
+.badge-ok{background:var(--yellow-light);color:#92400E;}
+.badge-bad{background:var(--red-light);color:var(--red);}
+.history-best{font-size:16px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.history-stats{display:flex;gap:16px;}
+.history-stat{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;}
+.history-stat strong{color:var(--text);font-weight:700;}
+.history-best-ms{font-size:20px;font-weight:800;color:var(--green);}
 
-  /* Status Bar */
-  .status-bar {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 14px 20px;
-    margin-bottom: 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-  }
+.history-actions{display:flex;gap:8px;margin-bottom:14px;}
+.btn-outline{flex:1;background:transparent;border:1.5px solid var(--border);border-radius:12px;padding:10px;font-family:var(--font);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:all 0.2s;}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+.btn-outline.danger:hover{border-color:var(--red);color:var(--red);}
 
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-    transition: background 0.3s;
-  }
+/* ── Nodes Page ── */
+.nodes-filter{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.nodes-filter::-webkit-scrollbar{display:none;}
+.filter-btn{font-size:12px;font-weight:700;padding:6px 16px;border-radius:30px;border:1.5px solid var(--border);background:var(--bg);color:var(--muted);cursor:pointer;white-space:nowrap;transition:all 0.2s;font-family:var(--font);}
+.filter-btn.active{background:var(--blue);border-color:var(--blue);color:white;}
 
-  .status-dot.active {
-    background: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
-    animation: pulse 1s infinite;
-  }
+.node-item{background:var(--white);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow-sm);margin-bottom:8px;display:flex;align-items:center;gap:12px;border:1.5px solid transparent;transition:all 0.2s;}
+.node-item.bookmarked{border-color:rgba(245,158,11,0.3);background:linear-gradient(135deg,#FFFBEB,white);}
+.node-indicator{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.node-indicator.fast{background:var(--green);}
+.node-indicator.ok{background:var(--yellow);}
+.node-indicator.slow{background:var(--red);}
+.node-info{flex:1;min-width:0;}
+.node-ip{font-size:14px;font-weight:700;color:var(--text);}
+.node-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.node-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.node-ms{font-size:15px;font-weight:800;}
+.node-btns{display:flex;gap:6px;}
+.node-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:8px;cursor:pointer;font-family:var(--font);transition:all 0.15s;border:none;}
+.node-btn.copy{background:var(--blue-light);color:var(--blue);}
+.node-btn.bm{background:var(--yellow-light);color:#92400E;}
+.node-btn.bm.active{background:#FEF08A;color:#713F12;}
+.node-btn:active{opacity:0.7;transform:scale(0.96);}
+.nodes-empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.nodes-empty .empty-icon{font-size:48px;margin-bottom:12px;}
 
-  .status-dot.done { background: var(--green); box-shadow: 0 0 8px var(--green); animation: none; }
-  .status-dot.error { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+/* ── Settings Page ── */
+.settings-section{margin-bottom:20px;}
+.settings-section-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;padding:0 4px;}
+.settings-group{background:var(--white);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);}
+.settings-row{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);gap:12px;}
+.settings-row:last-child{border-bottom:none;}
+.settings-icon{font-size:20px;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.settings-label{flex:1;}
+.settings-label strong{display:block;font-size:14px;font-weight:700;color:var(--text);}
+.settings-label span{display:block;font-size:12px;color:var(--muted);margin-top:1px;}
+.settings-value{font-size:13px;font-weight:600;color:var(--muted);}
+.settings-arrow{color:var(--border);font-size:14px;}
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+.toggle{width:48px;height:28px;background:var(--border);border-radius:99px;position:relative;cursor:pointer;transition:background 0.3s;border:none;flex-shrink:0;}
+.toggle.on{background:var(--blue);}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;background:white;border-radius:50%;transition:transform 0.3s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+.toggle.on::after{transform:translateX(20px);}
 
-  .status-text { color: var(--text); flex: 1; }
-  .status-time { color: var(--muted); font-size: 12px; }
+.settings-input{background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;font-family:var(--font);font-size:14px;font-weight:600;color:var(--text);outline:none;width:100%;transition:border-color 0.2s;}
+.settings-input:focus{border-color:var(--blue);}
 
-  /* Progress */
-  .progress-wrap {
-    height: 2px;
-    background: var(--border);
-    border-radius: 1px;
-    margin-bottom: 24px;
-    overflow: hidden;
-  }
+.cred-row{padding:12px 18px;border-bottom:1px solid var(--border);}
+.cred-row:last-child{border-bottom:none;}
+.cred-row label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
 
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent2), var(--accent));
-    width: 0%;
-    transition: width 0.3s ease;
-    border-radius: 1px;
-  }
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px 18px;}
+.theme-opt{border-radius:14px;padding:12px;text-align:center;cursor:pointer;border:2px solid var(--border);transition:all 0.2s;}
+.theme-opt.selected{border-color:var(--blue);}
+.theme-opt .theme-preview{width:100%;height:40px;border-radius:8px;margin-bottom:8px;}
+.theme-opt span{font-size:12px;font-weight:700;color:var(--text);}
 
-  /* Server List */
-  .section-label {
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 12px;
-  }
+.proxy-row{padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.proxy-row:last-child{border-bottom:none;}
+.proxy-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.proxy-info{flex:1;}
+.proxy-name{font-size:13px;font-weight:700;color:var(--text);}
+.proxy-url{font-size:11px;color:var(--muted);margin-top:1px;}
+.proxy-status{font-size:11px;font-weight:600;}
 
-  .server-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 24px;
-    max-height: 400px;
-    overflow-y: auto;
-  }
-
-  .server-list::-webkit-scrollbar { width: 4px; }
-  .server-list::-webkit-scrollbar-track { background: var(--bg); }
-  .server-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  .server-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    transition: border-color 0.2s, background 0.2s;
-    animation: fadeIn 0.3s ease;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .server-row.success { border-color: rgba(0,255,136,0.2); }
-  .server-row.fail { border-color: rgba(255,68,102,0.15); }
-  .server-row.testing { border-color: rgba(0,229,255,0.3); background: rgba(0,229,255,0.03); }
-
-  .server-ip {
-    font-weight: 600;
-    color: var(--text);
-    min-width: 140px;
-    letter-spacing: 0.5px;
-  }
-
-  .server-status {
-    flex: 1;
-    font-size: 12px;
-  }
-
-  .server-latency {
-    font-weight: 700;
-    font-size: 15px;
-    min-width: 80px;
-    text-align: right;
-  }
-
-  .latency-bar {
-    height: 3px;
-    border-radius: 2px;
-    background: var(--border);
-    flex: 1;
-    overflow: hidden;
-  }
-
-  .latency-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.5s ease;
-  }
-
-  /* Results Panel */
-  .results-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 24px;
-  }
-
-  .results-header {
-    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(0,229,255,0.1));
-    border-bottom: 1px solid var(--border);
-    padding: 14px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .results-title {
-    font-family: var(--sans);
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 1px;
-    color: var(--accent);
-  }
-
-  .result-item {
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .result-item:last-child { border-bottom: none; }
-  .result-item:hover { background: rgba(0,229,255,0.04); }
-
-  .result-rank {
-    font-size: 20px;
-    min-width: 36px;
-  }
-
-  .result-ip {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  .result-ms {
-    font-size: 22px;
-    font-weight: 700;
-  }
-
-  .result-copy {
-    font-size: 11px;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    padding: 3px 8px;
-    transition: all 0.2s;
-  }
-
-  .result-item:hover .result-copy {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* Credentials */
-  .creds {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .cred-item label {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-
-  .cred-value {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--accent);
-  }
-
-  /* Toast */
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    background: var(--green);
-    color: #000;
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 3px;
-    transform: translateY(80px);
-    opacity: 0;
-    transition: all 0.3s ease;
-    z-index: 999;
-  }
-
-  .toast.show { transform: translateY(0); opacity: 1; }
-
-  @media (max-width: 600px) {
-    .config-panel { grid-template-columns: 1fr; }
-    .creds { grid-template-columns: 1fr; }
-    .latency-bar { display: none; }
-  }
+/* ── Toast ── */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:white;font-family:var(--font);font-size:13px;font-weight:600;padding:12px 22px;border-radius:30px;opacity:0;transition:all 0.3s ease;z-index:999;white-space:nowrap;max-width:320px;text-align:center;pointer-events:none;box-shadow:0 8px 24px rgba(26,29,46,0.25);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
+<div class="phone-shell">
+  <div class="phone-notch"></div>
 
-<div class="container">
-  <!-- Header -->
-  <div class="header">
-    <div class="header-badge">VPN Utility v2.0</div>
-    <h1>L2TP 测速工具</h1>
-    <p class="subtitle">CONCURRENT LATENCY TESTER · FREE VPN SERVERS</p>
-  </div>
-
-  <!-- Config -->
-  <div class="config-panel">
-    <div class="config-item">
-      <label>Ping 次数</label>
-      <input type="number" id="pingCount" value="3" min="1" max="10">
-    </div>
-    <div class="config-item">
-      <label>超时 (秒)</label>
-      <input type="number" id="pingTimeout" value="2" min="1" max="10">
-    </div>
-    <div class="config-item">
-      <label>显示 Top N</label>
-      <input type="number" id="topN" value="5" min="1" max="20">
-    </div>
-  </div>
-
-  <!-- Start Button -->
-  <button class="btn-start" id="startBtn" onclick="startTest()">
-    <div class="btn-glow"></div>
-    ▶ 开始测速
-  </button>
-
-  <!-- Status -->
+  <!-- Status bar -->
   <div class="status-bar">
-    <div class="status-dot" id="statusDot"></div>
-    <span class="status-text" id="statusText">准备就绪，点击开始测速</span>
-    <span class="status-time" id="statusTime"></span>
-  </div>
-
-  <!-- Progress -->
-  <div class="progress-wrap">
-    <div class="progress-bar" id="progressBar"></div>
-  </div>
-
-  <!-- Server List -->
-  <div class="section-label" id="serverListLabel" style="display:none">实时测速结果</div>
-  <div class="server-list" id="serverList"></div>
-
-  <!-- Results -->
-  <div class="results-panel" id="resultsPanel" style="display:none">
-    <div class="results-header">
-      <span class="results-title">🏆 延迟排名</span>
-      <span style="font-size:12px;color:var(--muted)" id="resultsSummary"></span>
+    <span class="time" id="clockTime"></span>
+    <div class="status-icons">
+      <span style="font-size:11px">▲▼</span>
+      <span style="font-size:11px">WiFi</span>
+      <span style="font-size:13px">🔋</span>
     </div>
-    <div id="resultsList"></div>
   </div>
 
-  <!-- Credentials -->
-  <div class="creds">
-    <div class="cred-item"><label>用户名</label><div class="cred-value">vpn</div></div>
-    <div class="cred-item"><label>密码</label><div class="cred-value">vpn</div></div>
-    <div class="cred-item"><label>IPsec 密钥</label><div class="cred-value">vpn</div></div>
-    <div class="cred-item"><label>协议</label><div class="cred-value">L2TP/IPsec</div></div>
+  <!-- ══════════ PAGE: 测速 ══════════ -->
+  <div class="page active" id="page-speed">
+    <div class="page-header">
+      <div>
+        <p style="font-size:13px;color:var(--muted)">你好！</p>
+        <h2>L2TP 测速</h2>
+      </div>
+      <div class="avatar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 853.35 830.87" width="28" height="28" fill="var(--blue)"><path d="M754.49,678H687L863,444.17H787l-.53-1.49q8.64-11.52,17.28-23.05,27.56-36.76,55.1-73.53,36.63-48.6,73.39-97.08,31.29-41.43,62.53-82.91,13.82-18.36,27.4-36.9c2-2.7,4-4.28,7.7-4.25q143.82,1.28,287.64,2.29c2.64,0,5.28.38,9.36.69L939.44,445.45,1091.59,447,809,678.56c0,.38.08.76.11,1.14h59l.45,1.51L546.91,955l-.56-.47Z" transform="translate(-473.5 -124.17)"/><path d="M693.76,882.61,912.49,696.52l.65.58-87,118.34c4,.71,7.22,1.77,10.5,1.81,19.42.22,38.87.92,58.24.09,26.45-1.12,51.89-7.83,76.65-17a293.13,293.13,0,0,0,78.48-44,282.62,282.62,0,0,0,48.1-47.37,288.84,288.84,0,0,0,49.18-91.09,310.16,310.16,0,0,0,13.2-61.47,273,273,0,0,0,.68-56.64,294.05,294.05,0,0,0-49.56-138c-2.15-3.18-1.56-4.62,1-6.68,14.62-11.89,29.16-23.88,43.77-35.8q16.85-13.74,33.79-27.4C1302.86,446,1287,652.09,1169.29,786.72a397.71,397.71,0,0,1-131.2,99,389.69,389.69,0,0,1-109.82,33.33,398,398,0,0,1-155-7.47A408.75,408.75,0,0,1,693.76,882.61Z" transform="translate(-473.5 -124.17)"/><path d="M974.44,137.82,795.64,362.56l-.75-.45,62.58-132.88c-4,.07-7.43-.34-10.65.25-19.1,3.52-38.31,6.58-57.17,11.13-25.74,6.19-49.4,17.68-71.94,31.43a293.23,293.23,0,0,0-68.53,58.32A282.35,282.35,0,0,0,611.1,386.1,288.78,288.78,0,0,0,580.4,485a309.23,309.23,0,0,0-1.12,62.86,271.88,271.88,0,0,0,10.25,55.71,294,294,0,0,0,75.21,125.88c2.72,2.71,2.42,4.24.33,6.75C653,750.64,641,765.21,629,779.71q-13.89,16.74-27.88,33.4c-140.3-129.55-164.43-334.82-74.84-489.6A397.45,397.45,0,0,1,636,201.06a389.54,389.54,0,0,1,101.34-53.85,397.52,397.52,0,0,1,153.56-22.53A408.61,408.61,0,0,1,974.44,137.82Z" transform="translate(-473.5 -124.17)"/></svg>
+      </div>
+    </div>
+
+    <div class="config-card">
+      <div class="config-card-title">测速参数</div>
+      <div class="config-row">
+        <div class="config-field"><label>Ping次数</label><input type="number" id="pingCount" value="3" min="1" max="10"></div>
+        <div class="config-field"><label>超时(秒)</label><input type="number" id="pingTimeout" value="2" min="1" max="10"></div>
+        <div class="config-field"><label>Top N</label><input type="number" id="topN" value="5" min="1" max="20"></div>
+      </div>
+      <div class="config-row" style="margin-bottom:0">
+        <div class="config-field" style="width:100%;flex:none">
+          <label>自动刷新</label>
+          <select id="autoRefresh">
+            <option value="0">关闭</option>
+            <option value="60">1 分钟</option>
+            <option value="180">3 分钟</option>
+            <option value="300">5 分钟</option>
+            <option value="600">10 分钟</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="countdown-card" id="countdownCard" style="display:none">
+      <div class="cd-ring">
+        <svg width="36" height="36" viewBox="0 0 36 36">
+          <circle class="ring-bg" cx="18" cy="18" r="14"/>
+          <circle class="ring-fill" id="ringFill" cx="18" cy="18" r="14"/>
+        </svg>
+        <div class="cd-num" id="cdNum">—</div>
+      </div>
+      <span id="cdLabel">下次自动刷新</span>
+      <button class="btn-cd-cancel" onclick="cancelAutoRefresh()">取消</button>
+    </div>
+
+    <div class="sources-wrap">
+      <div class="sources-label">数据源 <span style="color:var(--blue)" id="sourceCount"></span></div>
+      <div class="source-chips" id="sourceList"></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-main" id="startBtn" onclick="startTest()">▶ 开始测速</button>
+      <button class="btn-geo" id="geoBtn" onclick="toggleGeo()">🌍 归属地</button>
+    </div>
+
+    <div class="status-card">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">准备就绪，点击开始测速</span>
+      <span class="status-count" id="statusTime"></span>
+    </div>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+    <div class="sec-label" id="liveLabel" style="display:none">实时测速</div>
+    <div class="server-list" id="serverList"></div>
+
+    <div class="results-card" id="resultsPanel" style="display:none">
+      <div class="results-header">
+        <h3>🏆 延迟排名</h3>
+        <span id="resultsSummary"></span>
+      </div>
+      <div id="resultsList"></div>
+    </div>
+  </div>
+
+  <!-- ══════════ PAGE: 历史 ══════════ -->
+  <div class="page" id="page-history">
+    <div class="page-header">
+      <div><p style="font-size:13px;color:var(--muted)">共 <span id="historyCount">0</span> 条记录</p><h2>测速历史</h2></div>
+      <div class="avatar" style="margin-top:18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="var(--blue)" stroke-width="2"/>
+          <path d="M12 6v6l4 2" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="history-actions">
+      <button class="btn-outline" onclick="exportHistory()">📤 导出</button>
+      <button class="btn-outline danger" onclick="clearHistory()">🗑 清空</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- ══════════ PAGE: 节点 ══════════ -->
+  <div class="page" id="page-nodes">
+    <div class="page-header">
+      <div><p style="font-size:13px;color:var(--muted)">共 <span id="nodeCount">0</span> 个节点</p><h2>可用节点</h2></div>
+      <div class="avatar" style="margin-top:18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="var(--blue)" stroke-width="2"/>
+          <path d="M2 12h20M12 2c-2.5 3-4 6.5-4 10s1.5 7 4 10M12 2c2.5 3 4 6.5 4 10s-1.5 7-4 10" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <div class="nodes-filter" id="nodesFilter">
+      <button class="filter-btn active" onclick="filterNodes('all',this)">全部</button>
+      <button class="filter-btn" onclick="filterNodes('fast',this)">🟢 低延迟 &lt;80ms</button>
+      <button class="filter-btn" onclick="filterNodes('ok',this)">🟡 中延迟</button>
+      <button class="filter-btn" onclick="filterNodes('slow',this)">🔴 高延迟</button>
+      <button class="filter-btn" onclick="filterNodes('bookmarked',this)">⭐ 收藏</button>
+    </div>
+    <div id="nodesList"></div>
+  </div>
+
+  <!-- ══════════ PAGE: 设置 ══════════ -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <div><p style="font-size:13px;color:var(--muted)">自定义你的体验</p><h2>设置</h2></div>
+      <div class="avatar" style="margin-top:18px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="3" stroke="var(--blue)" stroke-width="2"/>
+          <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 连接凭据 -->
+    <div class="settings-section">
+      <div class="settings-section-title">🔐 连接凭据</div>
+      <div class="settings-group">
+        <div class="cred-row"><label>服务器地址</label><input class="settings-input" id="credServer" value="（从测速结果中选择）" readonly style="cursor:default;color:var(--muted)"></div>
+        <div class="cred-row"><label>用户名</label><input class="settings-input" id="credUser" value="vpn"></div>
+        <div class="cred-row"><label>密码</label><input class="settings-input" id="credPass" type="password" value="vpn"></div>
+        <div class="cred-row"><label>IPsec 密钥</label><input class="settings-input" id="credKey" type="password" value="vpn"></div>
+        <div class="cred-row" style="border-bottom:none">
+          <button class="btn-main" style="width:100%;padding:12px;font-size:14px" onclick="copyAllCreds()">📋 一键复制全部连接信息</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 代理配置 -->
+    <div class="settings-section">
+      <div class="settings-section-title">🌐 CORS 代理状态</div>
+      <div class="settings-group" id="proxyStatusList"></div>
+    </div>
+
+    <!-- 功能开关 -->
+    <div class="settings-section">
+      <div class="settings-section-title">⚙️ 功能配置</div>
+      <div class="settings-group">
+        <div class="settings-row">
+          <div class="settings-icon" style="background:#EEF2FF">🌍</div>
+          <div class="settings-label"><strong>自动查询归属地</strong><span>测速完成后自动查询 Top N</span></div>
+          <button class="toggle" id="toggleGeoSetting" onclick="toggleGeoSetting()"></button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon" style="background:#DCFCE7">💾</div>
+          <div class="settings-label"><strong>自动保存历史</strong><span>每次测速结果自动记录</span></div>
+          <button class="toggle on" id="toggleHistory"></button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-icon" style="background:#FEF3C7">🔔</div>
+          <div class="settings-label"><strong>测速完成提示</strong><span>完成时显示 Toast 通知</span></div>
+          <button class="toggle on" id="toggleNotify" onclick="this.classList.toggle('on')"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 外观 -->
+    <div class="settings-section">
+      <div class="settings-section-title">🎨 外观主题</div>
+      <div class="settings-group">
+        <div class="theme-grid">
+          <div class="theme-opt selected" onclick="setTheme('blue',this)">
+            <div class="theme-preview" style="background:linear-gradient(135deg,#3563E9,#4A7CF7)"></div>
+            <span>海洋蓝（默认）</span>
+          </div>
+          <div class="theme-opt" onclick="setTheme('purple',this)">
+            <div class="theme-preview" style="background:linear-gradient(135deg,#7C3AED,#A78BFA)"></div>
+            <span>星云紫</span>
+          </div>
+          <div class="theme-opt" onclick="setTheme('green',this)">
+            <div class="theme-preview" style="background:linear-gradient(135deg,#16A34A,#22C55E)"></div>
+            <span>森林绿</span>
+          </div>
+          <div class="theme-opt" onclick="setTheme('orange',this)">
+            <div class="theme-preview" style="background:linear-gradient(135deg,#EA580C,#F97316)"></div>
+            <span>暖橙色</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 关于 -->
+    <div class="settings-section">
+      <div class="settings-section-title">ℹ️ 关于</div>
+      <div class="settings-group">
+        <div class="settings-row"><div class="settings-icon" style="background:#EEF2FF">⚡</div><div class="settings-label"><strong>L2TP 测速工具</strong><span>v4.0 · 多数据源并发测速</span></div><span class="settings-value">最新</span></div>
+        <div class="settings-row"><div class="settings-icon" style="background:#DCFCE7">🌐</div><div class="settings-label"><strong>数据来源</strong><span>6 个免费服务器列表</span></div><span class="settings-arrow">›</span></div>
+        <div class="settings-row" style="cursor:pointer" onclick="clearHistory();showToast('✅ 所有数据已清除')"><div class="settings-icon" style="background:#FEE2E2">🗑</div><div class="settings-label"><strong style="color:var(--red)">清除所有数据</strong><span>历史记录、收藏节点</span></div><span class="settings-arrow">›</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active" onclick="switchPage('speed',this)">
+      <svg width="22" height="22" viewBox="0 0 853.35 830.87" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M754.49,678H687L863,444.17H787l-.53-1.49q8.64-11.52,17.28-23.05,27.56-36.76,55.1-73.53,36.63-48.6,73.39-97.08,31.29-41.43,62.53-82.91,13.82-18.36,27.4-36.9c2-2.7,4-4.28,7.7-4.25q143.82,1.28,287.64,2.29c2.64,0,5.28.38,9.36.69L939.44,445.45,1091.59,447,809,678.56c0,.38.08.76.11,1.14h59l.45,1.51L546.91,955l-.56-.47Z" transform="translate(-473.5 -124.17)"/><path d="M693.76,882.61,912.49,696.52l.65.58-87,118.34c4,.71,7.22,1.77,10.5,1.81,19.42.22,38.87.92,58.24.09,26.45-1.12,51.89-7.83,76.65-17a293.13,293.13,0,0,0,78.48-44,282.62,282.62,0,0,0,48.1-47.37,288.84,288.84,0,0,0,49.18-91.09,310.16,310.16,0,0,0,13.2-61.47,273,273,0,0,0,.68-56.64,294.05,294.05,0,0,0-49.56-138c-2.15-3.18-1.56-4.62,1-6.68,14.62-11.89,29.16-23.88,43.77-35.8q16.85-13.74,33.79-27.4C1302.86,446,1287,652.09,1169.29,786.72a397.71,397.71,0,0,1-131.2,99,389.69,389.69,0,0,1-109.82,33.33,398,398,0,0,1-155-7.47A408.75,408.75,0,0,1,693.76,882.61Z" transform="translate(-473.5 -124.17)"/><path d="M974.44,137.82,795.64,362.56l-.75-.45,62.58-132.88c-4,.07-7.43-.34-10.65.25-19.1,3.52-38.31,6.58-57.17,11.13-25.74,6.19-49.4,17.68-71.94,31.43a293.23,293.23,0,0,0-68.53,58.32A282.35,282.35,0,0,0,611.1,386.1,288.78,288.78,0,0,0,580.4,485a309.23,309.23,0,0,0-1.12,62.86,271.88,271.88,0,0,0,10.25,55.71,294,294,0,0,0,75.21,125.88c2.72,2.71,2.42,4.24.33,6.75C653,750.64,641,765.21,629,779.71q-13.89,16.74-27.88,33.4c-140.3-129.55-164.43-334.82-74.84-489.6A397.45,397.45,0,0,1,636,201.06a389.54,389.54,0,0,1,101.34-53.85,397.52,397.52,0,0,1,153.56-22.53A408.61,408.61,0,0,1,974.44,137.82Z" transform="translate(-473.5 -124.17)"/>
+      </svg>
+      <span>测速</span>
+    </div>
+    <div class="nav-item" onclick="switchPage('history',this)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+      <span>历史</span>
+    </div>
+    <div class="nav-item" onclick="switchPage('nodes',this)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c-2.5 3-4 6.5-4 10s1.5 7 4 10M12 2c2.5 3 4 6.5 4 10s-1.5 7-4 10"/>
+      </svg>
+      <span>节点</span>
+    </div>
+    <div class="nav-item" onclick="switchPage('settings',this)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+      <span>设置</span>
+    </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// Fallback servers
-const FALLBACK_SERVERS = [
-  '219.100.37.176','219.100.37.172','219.100.37.57',
-  '219.100.37.206','219.100.37.110','219.100.37.125'
+// ══════════════════════════════════════
+// 数据 & 配置
+// ══════════════════════════════════════
+const SOURCES=[
+  {id:'vpngate',name:'🌟 VPN Gate',  url:'https://www.vpngate.net/api/iphone/',           enabled:true, parser:'vpngate'},
+  {id:'ipspeed',name:'ipspeed.info', url:'https://ipspeed.info/pt/free-l2tpipsec.php',   enabled:true},
+  {id:'vpnhub', name:'vpnhub.me',    url:'https://vpnhub.me/en/all-l2tp-vpn-list.html',  enabled:true},
+  {id:'omgvpn', name:'omgvpn.com',   url:'https://omgvpn.com/freel2tp.php',               enabled:true},
+  {id:'listvpn',name:'listvpn.net',  url:'https://listvpn.net/l2tp-vpn-server',           enabled:true},
+  {id:'hidemy', name:'hidemy.life',  url:'https://hidemy.life/en/vpn-list-servers',       enabled:true},
+  {id:'vpnkeep',name:'vpnkeep.com',  url:'https://vpnkeep.com/l2tp-vpn',                  enabled:true},
 ];
 
-// Private/reserved IP check
-function isPublicIP(ip) {
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(p => isNaN(p) || p > 255)) return false;
-  const [a, b] = parts;
-  if (a === 0 || a === 127 || a >= 224) return false;
-  if (a === 10) return false;
-  if (a === 172 && b >= 16 && b <= 31) return false;
-  if (a === 192 && b === 168) return false;
+// VPN Gate 全部镜像 + 多轮请求策略
+const VPNGATE_MIRRORS = [
+  'https://www.vpngate.net/api/iphone/',
+  'https://www.vpngate.net/api/iphone/?&hub=vpngate&fields=ip,ping,l2tp',
+  'https://vpngate.net/api/iphone/',
+  'https://www.vpngate.net/cn/',           // HTML 页面也包含 IP
+  'https://www.vpngate.net/en/',
+  'https://www.vpngate.net/ja/',
+];
+
+const PROXIES=[
+  {name:'corsproxy.io',  url:u=>`https://corsproxy.io/?${encodeURIComponent(u)}`},
+  {name:'allorigins',    url:u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`},
+  {name:'thingproxy',    url:u=>`https://thingproxy.freeboard.io/fetch/${u}`},
+];
+
+const FALLBACK=['219.100.37.176','219.100.37.172','219.100.37.57','219.100.37.206','219.100.37.110','219.100.37.125','103.86.96.100','103.86.99.100','194.165.16.75','194.165.16.77'];
+
+// State
+let geoEnabled=false, cdTimer=null, cdTotal=0, cdLeft=0;
+const geoCache=new Map();
+let allNodes=[]; // {ip, ms, source, geo, bookmarked}
+let historyList=[]; // [{time, total, available, bestIP, bestMs}]
+let bookmarks=new Set();
+let currentFilter='all';
+
+// ══════════════════════════════════════
+// Page Navigation
+// ══════════════════════════════════════
+function switchPage(name, navEl){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  navEl.classList.add('active');
+  if(name==='history') renderHistory();
+  if(name==='nodes') renderNodes();
+  if(name==='settings') renderProxyStatus();
+}
+
+// ══════════════════════════════════════
+// Clock
+// ══════════════════════════════════════
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clockTime').textContent=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+updateClock(); setInterval(updateClock,1000);
+
+// ══════════════════════════════════════
+// IP Utils
+// ══════════════════════════════════════
+function isPublic(ip){
+  const p=ip.split('.').map(Number);
+  if(p.length!==4||p.some(x=>isNaN(x)||x>255)) return false;
+  const[a,b]=p;
+  if(a===0||a===127||a>=224||a===10) return false;
+  if(a===172&&b>=16&&b<=31) return false;
+  if(a===192&&b===168) return false;
   return true;
 }
+function extractIPs(html){return[...new Set((html.match(/\b(\d{1,3}\.){3}\d{1,3}\b/g)||[]).filter(isPublic))];}
 
-// Extract IPs from HTML text
-function extractIPs(html) {
-  const re = /\b(\d{1,3}\.){3}\d{1,3}\b/g;
-  const matches = html.match(re) || [];
-  return [...new Set(matches.filter(isPublicIP))];
-}
-
-// Simulate ping via fetch timing (browser limitation)
-async function measureLatency(ip, count, timeout) {
-  const results = [];
-  for (let i = 0; i < count; i++) {
-    const start = performance.now();
-    try {
-      await Promise.race([
-        fetch(`http://${ip}`, { mode: 'no-cors', cache: 'no-store' }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeout * 1000))
-      ]);
-      results.push(performance.now() - start);
-    } catch(e) {
-      // fetch fails for most IPs due to CORS/no-cors — we still get timing for TCP-level attempts
-      const elapsed = performance.now() - start;
-      if (elapsed < timeout * 1000 - 50) results.push(elapsed);
-    }
+// ══════════════════════════════════════
+// Proxy fetch with fallback
+// ══════════════════════════════════════
+async function fetchProxy(rawUrl,timeout=8000){
+  for(const px of PROXIES){
+    try{
+      const res=await Promise.race([fetch(px.url(rawUrl),{cache:'no-store'}),new Promise((_,r)=>setTimeout(()=>r(),timeout))]);
+      const t=await res.text();
+      if(t&&t.length>200) return t;
+    }catch{}
   }
-  if (results.length === 0) return null;
-  return results.reduce((a, b) => a + b, 0) / results.length;
+  return null;
 }
 
-// UI helpers
-function setStatus(msg, state = 'idle') {
-  document.getElementById('statusText').textContent = msg;
-  const dot = document.getElementById('statusDot');
-  dot.className = 'status-dot' + (state === 'running' ? ' active' : state === 'done' ? ' done' : state === 'error' ? ' error' : '');
-}
+// ══════════════════════════════════════
+// VPN Gate 深度解析（CSV + HTML 双模式）
+// ══════════════════════════════════════
 
-function setProgress(pct) {
-  document.getElementById('progressBar').style.width = pct + '%';
-}
+// 解析 VPN Gate CSV，返回带元数据的节点列表
+function parseVpnGateCsv(text){
+  const lines=text.split('\n').filter(l=>l&&!l.startsWith('*'));
+  const headerIdx=lines.findIndex(l=>l.startsWith('#HostName')||l.startsWith('HostName'));
+  if(headerIdx===-1) return {ips:extractIPs(text), meta:{}};
 
-function latencyColor(ms) {
-  if (ms < 80) return 'var(--green)';
-  if (ms < 200) return 'var(--yellow)';
-  return 'var(--red)';
-}
+  const headers=lines[headerIdx].replace(/^#/,'').split(',');
+  const col=k=>headers.indexOf(k);
+  const ipIdx=col('IP'), l2tpIdx=col('L2TP/IPsec'), pingIdx=col('Ping');
+  const speedIdx=col('Speed'), countryIdx=col('CountryLong'), scoreIdx=col('Score');
 
-function addServerRow(ip, state, ms) {
-  const list = document.getElementById('serverList');
-  let row = document.getElementById('row-' + ip.replace(/\./g, '-'));
-  if (!row) {
-    row = document.createElement('div');
-    row.id = 'row-' + ip.replace(/\./g, '-');
-    row.className = 'server-row ' + state;
-    list.appendChild(row);
+  if(ipIdx===-1) return {ips:extractIPs(text), meta:{}};
+
+  const ips=[], meta={};
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const c=lines[i].split(',');
+    if(!c[ipIdx]) continue;
+    const ip=c[ipIdx].trim();
+    if(!isPublic(ip)) continue;
+    const l2tp=l2tpIdx===-1||(c[l2tpIdx]?.trim()==='1'||c[l2tpIdx]?.trim().toLowerCase()==='true');
+    if(!l2tp) continue;
+    const pingMs=pingIdx!==-1?parseInt(c[pingIdx])||999:999;
+    if(pingMs>300) continue; // 过滤极差节点
+    ips.push(ip);
+    meta[ip]={
+      ping: pingMs,
+      speed: speedIdx!==-1?parseInt(c[speedIdx])||0:0,
+      country: countryIdx!==-1?c[countryIdx]?.trim()||'':''  ,
+      score: scoreIdx!==-1?parseInt(c[scoreIdx])||0:0,
+    };
   }
-  const color = ms ? latencyColor(ms) : (state === 'fail' ? 'var(--red)' : 'var(--accent)');
-  const barW = ms ? Math.min(100, (ms / 500) * 100) : 0;
-  row.className = 'server-row ' + state;
-  row.innerHTML = `
-    <span class="server-ip">${ip}</span>
-    <div class="latency-bar"><div class="latency-fill" style="width:${barW}%;background:${color}"></div></div>
-    <span class="server-latency" style="color:${color}">
-      ${ms ? ms.toFixed(1) + ' ms' : (state === 'testing' ? '…' : '✗')}
-    </span>`;
+  return {ips:[...new Set(ips)], meta};
 }
 
-function showResults(results, topN, elapsed) {
-  const panel = document.getElementById('resultsPanel');
-  const list = document.getElementById('resultsList');
-  const summary = document.getElementById('resultsSummary');
-  panel.style.display = 'block';
-  summary.textContent = `${results.length} 个可用 · 总耗时 ${elapsed}s`;
-  const medals = ['🥇','🥈','🥉'];
-  list.innerHTML = results.slice(0, topN).map((r, i) => `
-    <div class="result-item" onclick="copyIP('${r.ip}')">
-      <span class="result-rank">${medals[i] || (i+1)+'.'}</span>
-      <span class="result-ip">${r.ip}</span>
-      <span class="result-ms" style="color:${latencyColor(r.ms)}">${r.ms.toFixed(1)} ms</span>
-      <span class="result-copy">复制 IP</span>
-    </div>`).join('');
-}
+// 从 VPN Gate 所有镜像并发抓取，合并去重，按 score 排序
+async function fetchVpnGateExhaustive(){
+  const btn=document.getElementById('src-vpngate');
+  if(btn) btn.textContent='🌟 VPN Gate (抓取中…)';
 
-function copyIP(ip) {
-  navigator.clipboard.writeText(ip).then(() => showToast('已复制: ' + ip));
-}
+  // 并发请求所有镜像
+  const results = await Promise.allSettled(
+    VPNGATE_MIRRORS.map(url => fetchProxy(url, 10000))
+  );
 
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
+  const allIps=new Set();
+  const allMeta={};
+  let totalParsed=0;
 
-async function startTest() {
-  const btn = document.getElementById('startBtn');
-  const pingCount = parseInt(document.getElementById('pingCount').value) || 3;
-  const pingTimeout = parseInt(document.getElementById('pingTimeout').value) || 2;
-  const topN = parseInt(document.getElementById('topN').value) || 5;
-
-  btn.disabled = true;
-  document.getElementById('serverList').innerHTML = '';
-  document.getElementById('serverListLabel').style.display = 'block';
-  document.getElementById('resultsPanel').style.display = 'none';
-  setProgress(0);
-  setStatus('正在获取服务器列表...', 'running');
-
-  // Fetch servers (via CORS proxy fallback)
-  let servers = FALLBACK_SERVERS;
-  try {
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://ipspeed.info/pt/free-l2tpipsec.php');
-    const res = await Promise.race([
-      fetch(proxyUrl),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
-    ]);
-    const html = await res.text();
-    const fetched = extractIPs(html);
-    if (fetched.length > 0) servers = fetched;
-    setStatus(`获取到 ${servers.length} 个服务器，开始测速...`, 'running');
-  } catch {
-    setStatus(`使用备用列表 (${servers.length} 个)，开始测速...`, 'running');
-  }
-
-  const startTs = Date.now();
-  const results = [];
-  let done = 0;
-
-  setStatus(`并发测速 0 / ${servers.length}`, 'running');
-
-  const tasks = servers.map(ip => async () => {
-    addServerRow(ip, 'testing', null);
-    const ms = await measureLatency(ip, pingCount, pingTimeout);
-    done++;
-    setProgress((done / servers.length) * 100);
-    document.getElementById('statusTime').textContent = `${done}/${servers.length}`;
-    if (ms !== null) {
-      results.push({ ip, ms });
-      addServerRow(ip, 'success', ms);
+  for(const r of results){
+    if(r.status!=='fulfilled'||!r.value) continue;
+    const text=r.value;
+    // CSV 格式
+    if(text.includes('#HostName')||text.includes('HostName,IP')){
+      const {ips,meta}=parseVpnGateCsv(text);
+      ips.forEach(ip=>{allIps.add(ip); if(meta[ip]) allMeta[ip]=meta[ip];});
+      totalParsed+=ips.length;
     } else {
-      addServerRow(ip, 'fail', null);
+      // HTML 页面，直接抓 IP
+      extractIPs(text).forEach(ip=>allIps.add(ip));
+    }
+  }
+
+  // 存储元数据供后续使用
+  window._vpngateMeta = allMeta;
+
+  const ips=[...allIps];
+  // 按 score 降序排（更高分的节点质量更好，优先测速）
+  ips.sort((a,b)=>(allMeta[b]?.score||0)-(allMeta[a]?.score||0));
+
+  setChip('vpngate', ips.length>0?'fetched':'failed', ips.length);
+  return ips;
+}
+
+async function fetchSrc(src){
+  if(src.id==='vpngate') return await fetchVpnGateExhaustive();
+  const html=await fetchProxy(src.url);
+  const ips=html?extractIPs(html):[];
+  setChip(src.id,ips.length>0?'fetched':(html===null?'failed':'on'),ips.length);
+  return ips;
+}
+
+// ══════════════════════════════════════
+// Geo
+// ══════════════════════════════════════
+async function queryGeo(ip){
+  if(geoCache.has(ip)) return geoCache.get(ip);
+  try{
+    const res=await Promise.race([fetch(`https://ipapi.co/${ip}/json/`),new Promise((_,r)=>setTimeout(()=>r(),4000))]);
+    const d=await res.json();
+    const flag=d.country_code?String.fromCodePoint(...[...d.country_code].map(c=>0x1F1E6-65+c.charCodeAt(0))):'';
+    const g=[flag,d.country_name,d.city].filter(Boolean).join(' ')||'未知';
+    geoCache.set(ip,g); return g;
+  }catch{return '—';}
+}
+
+// ══════════════════════════════════════
+// Ping
+// ══════════════════════════════════════
+async function ping(ip,count,timeout){
+  const r=[];
+  for(let i=0;i<count;i++){
+    const t0=performance.now();
+    try{
+      await Promise.race([fetch(`http://${ip}`,{mode:'no-cors',cache:'no-store'}),new Promise((_,rj)=>setTimeout(()=>rj(),timeout*1000))]);
+      r.push(performance.now()-t0);
+    }catch{
+      const e=performance.now()-t0;
+      if(e<timeout*1000-50) r.push(e);
+    }
+  }
+  if(!r.length) return null;
+  return r.reduce((a,b)=>a+b)/r.length;
+}
+
+// ══════════════════════════════════════
+// Auto Refresh
+// ══════════════════════════════════════
+function scheduleRefresh(sec){
+  cancelAutoRefresh(); if(!sec) return;
+  cdTotal=sec; cdLeft=sec;
+  const card=document.getElementById('countdownCard'),label=document.getElementById('cdLabel'),num=document.getElementById('cdNum'),ring=document.getElementById('ringFill'),C=88;
+  card.style.display='flex';
+  cdTimer=setInterval(()=>{
+    cdLeft=Math.max(0,cdLeft-1);
+    num.textContent=cdLeft>=60?Math.ceil(cdLeft/60)+'m':cdLeft+'s';
+    ring.style.strokeDashoffset=C-C*(1-cdLeft/cdTotal);
+    label.textContent=`下次自动刷新 (${cdLeft>=60?Math.floor(cdLeft/60)+':'+String(cdLeft%60).padStart(2,'0'):cdLeft+'s'})`;
+    if(cdLeft<=0){clearInterval(cdTimer);startTest(true);}
+  },1000);
+}
+function cancelAutoRefresh(){clearInterval(cdTimer);document.getElementById('countdownCard').style.display='none';}
+
+// ══════════════════════════════════════
+// UI Helpers
+// ══════════════════════════════════════
+function setStatus(msg,state='idle'){
+  document.getElementById('statusText').textContent=msg;
+  const d=document.getElementById('statusDot');
+  d.className='status-dot'+(state==='running'?' active':state==='done'?' done':state==='error'?' error':'');
+}
+function setProgress(pct){document.getElementById('progressBar').style.width=pct+'%';}
+function msColor(ms){return ms<80?'var(--green)':ms<200?'var(--yellow)':'var(--red)';}
+function msLabel(ms){return ms<80?'fast':ms<200?'ok':'slow';}
+
+function addRow(ip,state,ms,src,geo){
+  const list=document.getElementById('serverList');
+  const id='row-'+ip.replace(/\./g,'-');
+  let row=document.getElementById(id);
+  if(!row){row=document.createElement('div');row.id=id;list.appendChild(row);}
+  const c=ms?msColor(ms):(state==='fail'?'var(--border)':'var(--blue)');
+  const bw=ms?Math.min(100,(ms/500)*100):0;
+  row.className='server-row '+state;
+  row.innerHTML=`
+    <div class="server-indicator"></div>
+    <div class="server-info"><div class="server-ip">${ip}</div><div class="server-geo">${geo||src||''}</div></div>
+    <div class="server-bar-wrap"><div class="latency-bar"><div class="latency-fill" style="width:${bw}%;background:${c}"></div></div><div class="server-src">${src}</div></div>
+    <div class="server-ms" style="color:${c}">${ms?ms.toFixed(1)+' ms':(state==='testing'?'…':'✗')}</div>`;
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+function msColor(ms){return ms<80?'var(--green)':ms<200?'var(--yellow)':'var(--red)';}
+
+// ══════════════════════════════════════
+// Results
+// ══════════════════════════════════════
+function showResults(results,topN,elapsed,nSrc){
+  const panel=document.getElementById('resultsPanel');
+  panel.style.display='block';
+  document.getElementById('resultsSummary').textContent=`${results.length} 可用 · ${elapsed}s`;
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('resultsList').innerHTML=results.slice(0,topN).map((r,i)=>`
+    <div class="result-row">
+      <div class="result-medal">${medals[i]||((i+1)+'.')}</div>
+      <div class="result-body">
+        <div class="result-ip">${r.ip}</div>
+        ${r.geo?`<div class="result-geo">${r.geo}</div>`:''}
+        <div class="result-src">${r.source}</div>
+      </div>
+      <div class="result-right">
+        <div class="result-ms" style="color:${msColor(r.ms)}">${r.ms.toFixed(1)} ms</div>
+        <div class="result-btns">
+          <button class="res-btn ip" onclick="copyIP('${r.ip}')">复制</button>
+          <button class="res-btn full" onclick="copyFull('${r.ip}')">一键复制</button>
+        </div>
+      </div>
+    </div>`).join('');
+  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+// ══════════════════════════════════════
+// Copy
+// ══════════════════════════════════════
+function copyFull(ip){
+  const u=document.getElementById('credUser').value||'vpn';
+  const p=document.getElementById('credPass').value||'vpn';
+  const k=document.getElementById('credKey').value||'vpn';
+  navigator.clipboard.writeText(`服务器: ${ip}\n用户名: ${u}\n密码: ${p}\nIPsec密钥: ${k}\n协议: L2TP/IPsec`)
+    .then(()=>showToast('✅ 完整连接信息已复制'));
+}
+function copyIP(ip){navigator.clipboard.writeText(ip).then(()=>showToast('✅ 已复制 '+ip));}
+function copyAllCreds(){
+  const ip=document.getElementById('credServer').value;
+  const u=document.getElementById('credUser').value;
+  const p=document.getElementById('credPass').value;
+  const k=document.getElementById('credKey').value;
+  navigator.clipboard.writeText(`服务器: ${ip}\n用户名: ${u}\n密码: ${p}\nIPsec密钥: ${k}\n协议: L2TP/IPsec`)
+    .then(()=>showToast('✅ 连接信息已复制'));
+}
+
+// ══════════════════════════════════════
+// Source Chips
+// ══════════════════════════════════════
+function initSources(){
+  const c=document.getElementById('sourceList');
+  c.innerHTML='';
+  SOURCES.forEach(s=>{
+    const b=document.createElement('button');
+    b.id='src-'+s.id;b.className='chip'+(s.enabled?' on':'');
+    b.textContent=s.name;b.onclick=()=>toggleSrc(s.id);
+    c.appendChild(b);
+  });
+  updateSrcCount();
+}
+function toggleSrc(id){
+  const s=SOURCES.find(x=>x.id===id);if(!s)return;
+  s.enabled=!s.enabled;
+  document.getElementById('src-'+id).className='chip'+(s.enabled?' on':'');
+  updateSrcCount();
+}
+function setChip(id,state,count){
+  const b=document.getElementById('src-'+id),s=SOURCES.find(x=>x.id===id);
+  if(!b||!s)return;
+  b.className='chip '+state;
+  b.textContent=s.name+(state==='fetched'?` (${count})`:state==='failed'?' ✗':'');
+}
+function updateSrcCount(){
+  document.getElementById('sourceCount').textContent=`· ${SOURCES.filter(s=>s.enabled).length}/${SOURCES.length}`;
+}
+
+// ══════════════════════════════════════
+// Geo toggle
+// ══════════════════════════════════════
+function toggleGeo(){
+  geoEnabled=!geoEnabled;
+  const b=document.getElementById('geoBtn');
+  b.classList.toggle('active',geoEnabled);
+  b.textContent=geoEnabled?'🌍 ON':'🌍 归属地';
+  document.getElementById('toggleGeoSetting').classList.toggle('on',geoEnabled);
+  showToast(geoEnabled?'归属地已开启':'归属地已关闭');
+}
+function toggleGeoSetting(){
+  geoEnabled=!geoEnabled;
+  document.getElementById('toggleGeoSetting').classList.toggle('on',geoEnabled);
+  document.getElementById('geoBtn').classList.toggle('active',geoEnabled);
+  document.getElementById('geoBtn').textContent=geoEnabled?'🌍 ON':'🌍 归属地';
+}
+
+// ══════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════
+function saveHistory(results,total,elapsed){
+  if(!document.getElementById('toggleHistory').classList.contains('on')) return;
+  const entry={
+    id:Date.now(),
+    time:new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    total, available:results.length, elapsed,
+    bestIP:results[0]?.ip||'—',
+    bestMs:results[0]?.ms||null,
+    results:results.slice(0,10)
+  };
+  historyList.unshift(entry);
+  if(historyList.length>50) historyList.pop();
+  document.getElementById('historyCount').textContent=historyList.length;
+}
+
+function renderHistory(){
+  const el=document.getElementById('historyList');
+  document.getElementById('historyCount').textContent=historyList.length;
+  if(!historyList.length){
+    el.innerHTML=`<div class="history-empty"><div class="empty-icon">📭</div><p>暂无测速记录</p><span>完成一次测速后自动保存</span></div>`;
+    return;
+  }
+  el.innerHTML=historyList.map(h=>{
+    const rate=Math.round((h.available/h.total)*100)||0;
+    const badgeClass=rate>=70?'badge-good':rate>=40?'badge-ok':'badge-bad';
+    const badgeText=rate>=70?'优质':rate>=40?'一般':'较差';
+    return`<div class="history-item" onclick="restoreHistory(${h.id})">
+      <div class="history-item-top">
+        <span class="history-time">🕐 ${h.time}</span>
+        <span class="history-badge ${badgeClass}">${badgeText} ${rate}%</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="history-best">🏆 ${h.bestIP}</div>
+          <div class="history-stats">
+            <div class="history-stat">可用 <strong>${h.available}/${h.total}</strong></div>
+            <div class="history-stat">耗时 <strong>${h.elapsed}s</strong></div>
+          </div>
+        </div>
+        ${h.bestMs?`<div class="history-best-ms">${h.bestMs.toFixed(1)} ms</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function restoreHistory(id){
+  const h=historyList.find(x=>x.id===id);
+  if(!h||!h.results) return;
+  switchPage('speed',document.querySelectorAll('.nav-item')[0]);
+  showResults(h.results,h.results.length,h.elapsed,1);
+  showToast('📋 已恢复历史记录');
+}
+
+function clearHistory(){
+  historyList=[];
+  renderHistory();
+  showToast('🗑 历史记录已清空');
+}
+
+function exportHistory(){
+  if(!historyList.length){showToast('暂无历史记录');return;}
+  const text=historyList.map(h=>`[${h.time}] 最佳: ${h.bestIP} ${h.bestMs?h.bestMs.toFixed(1)+'ms':''} | 可用: ${h.available}/${h.total} | 耗时: ${h.elapsed}s`).join('\n');
+  navigator.clipboard.writeText(text).then(()=>showToast('📤 历史已复制到剪贴板'));
+}
+
+// ══════════════════════════════════════
+// NODES
+// ══════════════════════════════════════
+function renderNodes(filter){
+  if(filter) currentFilter=filter;
+  const el=document.getElementById('nodesList');
+  document.getElementById('nodeCount').textContent=allNodes.length;
+
+  let nodes=[...allNodes];
+  if(currentFilter==='fast') nodes=nodes.filter(n=>n.ms<80);
+  else if(currentFilter==='ok') nodes=nodes.filter(n=>n.ms>=80&&n.ms<200);
+  else if(currentFilter==='slow') nodes=nodes.filter(n=>n.ms>=200);
+  else if(currentFilter==='bookmarked') nodes=nodes.filter(n=>bookmarks.has(n.ip));
+
+  if(!allNodes.length){
+    el.innerHTML=`<div class="nodes-empty"><div class="empty-icon">🔍</div><p style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">还没有节点数据</p><span style="font-size:12px">先去测速，结果会自动同步到这里</span></div>`;
+    return;
+  }
+  if(!nodes.length){
+    el.innerHTML=`<div class="nodes-empty"><div class="empty-icon">🤷</div><p style="font-size:14px;font-weight:600;color:var(--text)">该分类下暂无节点</p></div>`;
+    return;
+  }
+
+  el.innerHTML=nodes.map(n=>{
+    const isBm=bookmarks.has(n.ip);
+    const level=msLabel(n.ms);
+    const meta=window._vpngateMeta?.[n.ip];
+    const speedStr=meta?.speed?(meta.speed>1e6?(meta.speed/1e6).toFixed(0)+' Mbps':(meta.speed/1e3).toFixed(0)+' Kbps'):'';
+    const countryStr=meta?.country||n.geo||n.source||'';
+    const metaStr=[countryStr,speedStr].filter(Boolean).join(' · ');
+    return`<div class="node-item${isBm?' bookmarked':''}" id="node-${n.ip.replace(/\./g,'-')}">
+      <div class="node-indicator ${level}"></div>
+      <div class="node-info">
+        <div class="node-ip">${n.ip}</div>
+        <div class="node-meta">${metaStr}</div>
+      </div>
+      <div class="node-right">
+        <div class="node-ms" style="color:${msColor(n.ms)}">${n.ms.toFixed(1)} ms</div>
+        <div class="node-btns">
+          <button class="node-btn copy" onclick="copyFull('${n.ip}')">复制</button>
+          <button class="node-btn bm${isBm?' active':''}" onclick="toggleBookmark('${n.ip}')">${isBm?'⭐':'☆'} 收藏</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterNodes(filter,btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNodes(filter);
+}
+
+function toggleBookmark(ip){
+  if(bookmarks.has(ip)) bookmarks.delete(ip);
+  else bookmarks.add(ip);
+  renderNodes();
+  showToast(bookmarks.has(ip)?'⭐ 已收藏 '+ip:'☆ 已取消收藏');
+}
+
+// ══════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════
+function renderProxyStatus(){
+  const el=document.getElementById('proxyStatusList');
+  el.innerHTML=PROXIES.map(px=>`
+    <div class="proxy-row">
+      <div class="proxy-dot" style="background:var(--muted)" id="pdot-${px.name}"></div>
+      <div class="proxy-info">
+        <div class="proxy-name">${px.name}</div>
+        <div class="proxy-url">${px.url('example.com').substring(0,45)}…</div>
+      </div>
+      <span class="proxy-status" id="pstat-${px.name}" style="color:var(--muted)">未测试</span>
+    </div>`).join('');
+  // async test each proxy
+  PROXIES.forEach(async px=>{
+    const dot=document.getElementById('pdot-'+px.name);
+    const stat=document.getElementById('pstat-'+px.name);
+    try{
+      const t0=Date.now();
+      const res=await Promise.race([fetch(px.url('https://httpbin.org/ip'),{cache:'no-store'}),new Promise((_,r)=>setTimeout(()=>r(),4000))]);
+      const ms=Date.now()-t0;
+      dot.style.background='var(--green)';
+      stat.style.color='var(--green)';
+      stat.textContent=`${ms}ms ✓`;
+    }catch{
+      dot.style.background='var(--red)';
+      stat.style.color='var(--red)';
+      stat.textContent='失败 ✗';
     }
   });
+}
 
-  // Concurrency pool (10)
-  const POOL = 10;
-  const queue = [...tasks];
-  const workers = Array.from({ length: Math.min(POOL, queue.length) }, async () => {
-    while (queue.length) await queue.shift()();
-  });
-  await Promise.all(workers);
+const THEMES={
+  blue:{blue:'#4A7CF7','blue-dark':'#3563E9','blue-light':'#EEF2FF'},
+  purple:{blue:'#8B5CF6','blue-dark':'#7C3AED','blue-light':'#F5F3FF'},
+  green:{blue:'#22C55E','blue-dark':'#16A34A','blue-light':'#DCFCE7'},
+  orange:{blue:'#F97316','blue-dark':'#EA580C','blue-light':'#FFF7ED'},
+};
+function setTheme(name,el){
+  const t=THEMES[name];if(!t)return;
+  const r=document.documentElement.style;
+  Object.entries(t).forEach(([k,v])=>r.setProperty('--'+k,v));
+  document.querySelectorAll('.theme-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  showToast('🎨 主题已切换');
+}
 
-  const elapsed = ((Date.now() - startTs) / 1000).toFixed(1);
-  results.sort((a, b) => a.ms - b.ms);
+// ══════════════════════════════════════
+// MAIN TEST
+// ══════════════════════════════════════
+async function startTest(silent=false){
+  const btn=document.getElementById('startBtn');
+  const cnt=parseInt(document.getElementById('pingCount').value)||3;
+  const tmo=parseInt(document.getElementById('pingTimeout').value)||2;
+  const topN=parseInt(document.getElementById('topN').value)||5;
+  const refSec=parseInt(document.getElementById('autoRefresh').value)||0;
+  const active=SOURCES.filter(s=>s.enabled);
+  if(!active.length){showToast('请至少选一个数据源');return;}
 
-  if (results.length > 0) {
-    setStatus(`测速完成！${results.length} 个可用，耗时 ${elapsed}s`, 'done');
-    showResults(results, topN, elapsed);
+  btn.disabled=true;
+  document.getElementById('serverList').innerHTML='';
+  document.getElementById('liveLabel').style.display='block';
+  document.getElementById('resultsPanel').style.display='none';
+  setProgress(0);
+  setStatus(`抓取 ${active.length} 个数据源...`,'running');
+  active.forEach(s=>setChip(s.id,'on',0));
+
+  const fetched=await Promise.all(active.map(s=>fetchSrc(s)));
+  const ipMap=new Map();
+  fetched.forEach((ips,i)=>ips.forEach(ip=>{if(!ipMap.has(ip))ipMap.set(ip,active[i].name);}));
+
+  if(ipMap.size===0){
+    FALLBACK.forEach(ip=>ipMap.set(ip,'备用'));
+    setStatus(`使用备用列表 (${ipMap.size} 个)`,'running');
   } else {
-    setStatus('所有服务器均不可达，请检查网络', 'error');
+    setStatus(`${ipMap.size} 个服务器，开始测速...`,'running');
+  }
+
+  const t0=Date.now(),results=[]; let done=0; const total=ipMap.size;
+
+  const tasks=[...ipMap.entries()].map(([ip,src])=>async()=>{
+    addRow(ip,'testing',null,src,'');
+    const ms=await ping(ip,cnt,tmo);
+    done++;
+    setProgress((done/total)*100);
+    document.getElementById('statusTime').textContent=`${done}/${total}`;
+    if(ms!==null){results.push({ip,ms,source:src,geo:'',bookmarked:false});addRow(ip,'success',ms,src,'');}
+    else addRow(ip,'fail',null,src,'');
+  });
+
+  const Q=15,q=[...tasks];
+  await Promise.all(Array.from({length:Math.min(Q,q.length)},async()=>{while(q.length)await q.shift()();}));
+
+  const elapsed=((Date.now()-t0)/1000).toFixed(1);
+  results.sort((a,b)=>a.ms-b.ms);
+
+  // 同步到节点列表
+  allNodes=results.map(r=>({...r,bookmarked:bookmarks.has(r.ip)}));
+  document.getElementById('nodeCount').textContent=allNodes.length;
+
+  if(results.length>0){
+    setStatus(`完成！${results.length}/${total} 可用 · ${elapsed}s`,'done');
+    showResults(results,topN,elapsed,active.length);
+    saveHistory(results,total,elapsed);
+
+    // 更新设置页最佳 IP
+    if(results[0]) document.getElementById('credServer').value=results[0].ip;
+
+    if(geoEnabled){
+      setStatus('查询归属地中...','running');
+      await Promise.all(results.slice(0,topN).map(async r=>{
+        r.geo=await queryGeo(r.ip);
+        addRow(r.ip,'success',r.ms,r.source,r.geo);
+        const node=allNodes.find(n=>n.ip===r.ip);
+        if(node) node.geo=r.geo;
+      }));
+      showResults(results,topN,elapsed,active.length);
+      setStatus('完成！归属地已更新','done');
+    }
+  } else {
+    setStatus('所有服务器不可达','error');
   }
 
   setProgress(100);
-  btn.disabled = false;
+  btn.disabled=false;
+  if(refSec>0) scheduleRefresh(refSec);
 }
+
+// Init
+initSources();
+renderHistory();
+renderNodes();
 </script>
 </body>
 </html>
